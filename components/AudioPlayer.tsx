@@ -17,11 +17,9 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
     const stopOtherPlayers = (event: Event) => {
       const customEvent = event as CustomEvent<string>;
 
-      // 自分自身が再生を開始したイベントなら何もしない
       if (customEvent.detail === src) return;
 
       const audio = audioRef.current;
-
       if (!audio) return;
 
       audio.pause();
@@ -40,13 +38,12 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
     };
   }, [src]);
 
+  // 再生 / 一時停止
   const togglePlay = async () => {
     const audio = audioRef.current;
-
     if (!audio) return;
 
     if (audio.paused) {
-      // 他のAudioPlayerに「止まって」と通知
       window.dispatchEvent(
         new CustomEvent("audio-player-play", {
           detail: src,
@@ -63,6 +60,16 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
     }
   };
 
+  // 最初に戻る
+  const restartAudio = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.currentTime = 0;
+    setCurrentTime(0);
+  };
+
+  // 時間表示
   const formatTime = (seconds: number) => {
     if (!Number.isFinite(seconds)) return "0:00";
 
@@ -75,43 +82,45 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
   const progress =
     duration > 0 ? (currentTime / duration) * 100 : 0;
 
-const seekToPointer = (
-  event: React.PointerEvent<HTMLDivElement>
-) => {
-  const audio = audioRef.current;
+  // シーク
+  const seekToPointer = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    const audio = audioRef.current;
+    if (!audio || duration <= 0) return;
 
-  if (!audio || duration <= 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
 
-  const rect = event.currentTarget.getBoundingClientRect();
+    const position =
+      (event.clientX - rect.left) / rect.width;
 
-  const position =
-    (event.clientX - rect.left) / rect.width;
+    const newTime =
+      Math.max(0, Math.min(1, position)) * duration;
 
-  const newTime =
-    Math.max(0, Math.min(1, position)) * duration;
+    audio.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
 
-  audio.currentTime = newTime;
-  setCurrentTime(newTime);
-};
+  // シーク開始
+  const handlePointerDown = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    seekToPointer(event);
+  };
 
-const handlePointerDown = (
-  event: React.PointerEvent<HTMLDivElement>
-) => {
-  event.currentTarget.setPointerCapture(event.pointerId);
-  seekToPointer(event);
-};
+  // シーク中
+  const handlePointerMove = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    if (
+      !event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
+      return;
+    }
 
-const handlePointerMove = (
-  event: React.PointerEvent<HTMLDivElement>
-) => {
-  if (
-    !event.currentTarget.hasPointerCapture(event.pointerId)
-  ) {
-    return;
-  }
-
-  seekToPointer(event);
-};
+    seekToPointer(event);
+  };
 
   return (
     <div className="w-full min-w-[220px] sm:w-[280px]">
@@ -162,45 +171,67 @@ const handlePointerMove = (
         }}
       />
 
+      {/* CONTROLS */}
       <div className="flex items-center justify-between gap-4">
-        <button
-          type="button"
-          onClick={togglePlay}
-          className="group flex items-center gap-3"
-        >
-          <span
-            className={`
-              flex h-11 w-11 items-center justify-center
-              rounded-full border transition-all duration-300
-              ${
-                isPlaying
-                  ? "border-sky-300 bg-sky-400 text-white"
-                  : "border-slate-300 bg-white text-slate-600 group-hover:border-sky-300 group-hover:text-sky-500"
-              }
-            `}
+        <div className="flex items-center gap-3">
+          {/* PLAY / PAUSE */}
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="group flex items-center gap-3"
           >
-            {isPlaying ? "Ⅱ" : "▶"}
-          </span>
-
-          <div className="text-left">
-            <p
-              className={`text-[10px] font-semibold tracking-[0.18em] ${
-                isPlaying
-                  ? "text-sky-500"
-                  : "text-slate-600"
-              }`}
+            <span
+              className={`
+                flex h-11 w-11 items-center justify-center
+                rounded-full border transition-all duration-300
+                ${
+                  isPlaying
+                    ? "border-sky-300 bg-sky-400 text-white"
+                    : "border-slate-300 bg-white text-slate-600 group-hover:border-sky-300 group-hover:text-sky-500"
+                }
+              `}
             >
-              {isPlaying ? "PLAYING" : "LISTEN"}
-            </p>
+              {isPlaying ? "Ⅱ" : "▶"}
+            </span>
 
-            {isPlaying && (
-              <p className="mt-1 text-[9px] tracking-[0.12em] text-sky-400">
-                NOW PLAYING
+            <div className="text-left">
+              <p
+                className={`text-[10px] font-semibold tracking-[0.18em] ${
+                  isPlaying
+                    ? "text-sky-500"
+                    : "text-slate-600"
+                }`}
+              >
+                {isPlaying ? "PLAYING" : "LISTEN"}
               </p>
-            )}
-          </div>
-        </button>
 
+              {isPlaying && (
+                <p className="mt-1 text-[9px] tracking-[0.12em] text-sky-400">
+                  NOW PLAYING
+                </p>
+              )}
+            </div>
+          </button>
+
+          {/* RESTART */}
+          <button
+            type="button"
+            onClick={restartAudio}
+            aria-label="最初に戻る"
+            title="最初に戻る"
+            className="
+              flex h-9 w-9 items-center justify-center
+              rounded-full border border-slate-200
+              bg-white text-base text-slate-400
+              transition
+              hover:border-sky-300 hover:text-sky-500
+            "
+          >
+            ↺
+          </button>
+        </div>
+
+        {/* TIME */}
         <p className="whitespace-nowrap text-[11px] font-medium tabular-nums text-slate-500">
           {formatTime(currentTime)}
           <span className="mx-1.5 text-slate-300">/</span>
@@ -208,17 +239,18 @@ const handlePointerMove = (
         </p>
       </div>
 
-        <div
-            role="slider"
-            aria-label="Audio progress"
-            aria-valuemin={0}
-            aria-valuemax={duration || 0}
-            aria-valuenow={currentTime}
-            tabIndex={0}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            className="mt-4 flex h-10 touch-none cursor-pointer items-center"
-        >
+      {/* SEEK BAR */}
+      <div
+        role="slider"
+        aria-label="Audio progress"
+        aria-valuemin={0}
+        aria-valuemax={duration || 0}
+        aria-valuenow={currentTime}
+        tabIndex={0}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        className="mt-4 flex h-10 touch-none cursor-pointer items-center"
+      >
         <div className="relative h-[5px] w-full rounded-full bg-slate-200">
           <div
             className="absolute left-0 top-0 h-full rounded-full bg-sky-400"
