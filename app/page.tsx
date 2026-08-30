@@ -14,7 +14,7 @@ const tracks = [
   },
   {
     number: "02",
-    title: "ファジー",
+    title: "Fuzzy",
     audioSrc: "/audio/fuzzy.mp3",
     tone: "blue" as const,
   },
@@ -164,7 +164,7 @@ export default function Home() {
                     <span className="mr-4 text-sky-300">
                       02
                     </span>
-                    ファジー
+                    Fuzzy
                   </p>
                 </div>
               </div>
