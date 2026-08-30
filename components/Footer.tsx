@@ -5,7 +5,7 @@ export default function Footer() {
         <div className="grid gap-12 py-20 sm:grid-cols-2 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-[10px] tracking-[0.3em] text-black/40">
-              RAIN AND FLOWERS
+              Rain and Flowers
             </p>
 
             <p className="mt-5 text-4xl font-medium tracking-[-0.04em] sm:text-6xl">
@@ -53,7 +53,7 @@ export default function Footer() {
         </div>
 
         <div className="flex flex-col gap-3 border-t border-black/20 py-6 text-[9px] tracking-[0.18em] text-black/40 sm:flex-row sm:justify-between">
-          <p>© 2026 RAIN AND FLOWERS</p>
+          <p>© 2026 Rain and Flowers</p>
         </div>
       </div>
     </footer>

@@ -110,7 +110,7 @@ export default function TrackCard({
               sm:tracking-[0.2em]
             "
           >
-            RAIN AND FLOWERS
+            Rain and Flowers
           </p>
         </div>
 

@@ -34,7 +34,7 @@ export default function Home() {
         <header className="relative z-10 flex items-start justify-between border-b border-slate-300/60 py-5 sm:py-6">
           <div>
             <p className="text-[10px] font-medium tracking-[0.14em] sm:text-xs sm:tracking-[0.16em]">
-              RAIN AND FLOWERS
+              Rain and Flowers
             </p>
 
             <p className="mt-1 text-[9px] tracking-[0.14em] text-slate-400 sm:text-[10px] sm:tracking-[0.16em]">

@@ -13,7 +13,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "RAIN AND FLOWERS",
+  title: "Rain and Flowers",
   description: "Rain and Flowers Free Download",
 };
 
