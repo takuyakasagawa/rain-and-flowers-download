@@ -65,6 +65,7 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
     const audio = audioRef.current;
     if (!audio) return;
 
+    audio.pause();
     audio.currentTime = 0;
     setCurrentTime(0);
   };
