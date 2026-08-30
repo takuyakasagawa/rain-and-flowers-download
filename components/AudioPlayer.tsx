@@ -75,25 +75,43 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
   const progress =
     duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  const handleSeek = (
-    event: React.MouseEvent<HTMLDivElement>
-  ) => {
-    const audio = audioRef.current;
+const seekToPointer = (
+  event: React.PointerEvent<HTMLDivElement>
+) => {
+  const audio = audioRef.current;
 
-    if (!audio || duration <= 0) return;
+  if (!audio || duration <= 0) return;
 
-    const rect =
-      event.currentTarget.getBoundingClientRect();
+  const rect = event.currentTarget.getBoundingClientRect();
 
-    const position =
-      (event.clientX - rect.left) / rect.width;
+  const position =
+    (event.clientX - rect.left) / rect.width;
 
-    const newTime =
-      Math.max(0, Math.min(1, position)) * duration;
+  const newTime =
+    Math.max(0, Math.min(1, position)) * duration;
 
-    audio.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
+  audio.currentTime = newTime;
+  setCurrentTime(newTime);
+};
+
+const handlePointerDown = (
+  event: React.PointerEvent<HTMLDivElement>
+) => {
+  event.currentTarget.setPointerCapture(event.pointerId);
+  seekToPointer(event);
+};
+
+const handlePointerMove = (
+  event: React.PointerEvent<HTMLDivElement>
+) => {
+  if (
+    !event.currentTarget.hasPointerCapture(event.pointerId)
+  ) {
+    return;
+  }
+
+  seekToPointer(event);
+};
 
   return (
     <div className="w-full min-w-[220px] sm:w-[280px]">
@@ -190,16 +208,17 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
         </p>
       </div>
 
-      <div
-        role="slider"
-        aria-label="Audio progress"
-        aria-valuemin={0}
-        aria-valuemax={duration || 0}
-        aria-valuenow={currentTime}
-        tabIndex={0}
-        onClick={handleSeek}
-        className="mt-4 flex h-8 cursor-pointer items-center"
-      >
+        <div
+            role="slider"
+            aria-label="Audio progress"
+            aria-valuemin={0}
+            aria-valuemax={duration || 0}
+            aria-valuenow={currentTime}
+            tabIndex={0}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            className="mt-4 flex h-10 touch-none cursor-pointer items-center"
+        >
         <div className="relative h-[5px] w-full rounded-full bg-slate-200">
           <div
             className="absolute left-0 top-0 h-full rounded-full bg-sky-400"
