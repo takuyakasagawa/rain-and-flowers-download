@@ -8,6 +8,7 @@ type AudioPlayerProps = {
 
 export default function AudioPlayer({ src }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const fadeAnimationRef = useRef<number | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -22,7 +23,13 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
       const audio = audioRef.current;
       if (!audio) return;
 
+      if (fadeAnimationRef.current !== null) {
+        cancelAnimationFrame(fadeAnimationRef.current);
+        fadeAnimationRef.current = null;
+      }
+
       audio.pause();
+      audio.volume = 1;
     };
 
     window.addEventListener(
@@ -35,8 +42,92 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
         "audio-player-play",
         stopOtherPlayers
       );
+
+      if (fadeAnimationRef.current !== null) {
+        cancelAnimationFrame(fadeAnimationRef.current);
+      }
     };
   }, [src]);
+
+  // フェードイン
+  const fadeInAudio = (
+    audio: HTMLAudioElement,
+    duration = 300
+  ) => {
+    if (fadeAnimationRef.current !== null) {
+      cancelAnimationFrame(fadeAnimationRef.current);
+    }
+
+    const startTime = performance.now();
+
+    audio.volume = 0;
+
+    const fade = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+
+      const progress = Math.max(
+        0,
+        Math.min(elapsed / duration, 1)
+      );
+
+      audio.volume = progress;
+
+      if (progress < 1) {
+        fadeAnimationRef.current =
+          requestAnimationFrame(fade);
+      } else {
+        audio.volume = 1;
+        fadeAnimationRef.current = null;
+      }
+    };
+
+    fadeAnimationRef.current =
+      requestAnimationFrame(fade);
+  };
+
+  // フェードアウト
+  const fadeOutAudio = (
+    audio: HTMLAudioElement,
+    duration = 200,
+    onComplete?: () => void
+  ) => {
+    if (fadeAnimationRef.current !== null) {
+      cancelAnimationFrame(fadeAnimationRef.current);
+    }
+
+    const startTime = performance.now();
+    const startVolume = audio.volume;
+
+    const fade = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+
+      const progress = Math.max(
+        0,
+        Math.min(elapsed / duration, 1)
+      );
+
+      const nextVolume =
+        startVolume * (1 - progress);
+
+      audio.volume = Math.max(
+        0,
+        Math.min(nextVolume, 1)
+      );
+
+      if (progress < 1) {
+        fadeAnimationRef.current =
+          requestAnimationFrame(fade);
+      } else {
+        audio.volume = 0;
+        fadeAnimationRef.current = null;
+
+        onComplete?.();
+      }
+    };
+
+    fadeAnimationRef.current =
+      requestAnimationFrame(fade);
+  };
 
   // 再生 / 一時停止
   const togglePlay = async () => {
@@ -51,12 +142,33 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
       );
 
       try {
+        const shouldFadeIn =
+          audio.currentTime > 0.1;
+
+        if (shouldFadeIn) {
+          audio.volume = 0;
+        } else {
+          audio.volume = 1;
+        }
+
         await audio.play();
+
+        if (shouldFadeIn) {
+          fadeInAudio(audio, 300);
+        }
       } catch (error) {
-        console.error("Audio playback failed:", error);
+        audio.volume = 1;
+
+        console.error(
+          "Audio playback failed:",
+          error
+        );
       }
     } else {
-      audio.pause();
+      fadeOutAudio(audio, 200, () => {
+        audio.pause();
+        audio.volume = 1;
+      });
     }
   };
 
@@ -65,40 +177,69 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
     const audio = audioRef.current;
     if (!audio) return;
 
-    audio.pause();
-    audio.currentTime = 0;
-    setCurrentTime(0);
+    if (audio.paused) {
+      audio.currentTime = 0;
+      audio.volume = 1;
+      setCurrentTime(0);
+      return;
+    }
+
+    fadeOutAudio(audio, 200, () => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = 1;
+
+      setCurrentTime(0);
+    });
   };
 
   // 時間表示
   const formatTime = (seconds: number) => {
-    if (!Number.isFinite(seconds)) return "0:00";
+    if (!Number.isFinite(seconds)) {
+      return "0:00";
+    }
 
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    const minutes =
+      Math.floor(seconds / 60);
 
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
+    const secs =
+      Math.floor(seconds % 60);
+
+    return `${minutes}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   const progress =
-    duration > 0 ? (currentTime / duration) * 100 : 0;
+    duration > 0
+      ? (currentTime / duration) * 100
+      : 0;
 
   // シーク
   const seekToPointer = (
     event: React.PointerEvent<HTMLDivElement>
   ) => {
     const audio = audioRef.current;
-    if (!audio || duration <= 0) return;
 
-    const rect = event.currentTarget.getBoundingClientRect();
+    if (!audio || duration <= 0) {
+      return;
+    }
+
+    const rect =
+      event.currentTarget.getBoundingClientRect();
 
     const position =
-      (event.clientX - rect.left) / rect.width;
+      (event.clientX - rect.left) /
+      rect.width;
 
     const newTime =
-      Math.max(0, Math.min(1, position)) * duration;
+      Math.max(
+        0,
+        Math.min(1, position)
+      ) * duration;
 
     audio.currentTime = newTime;
+
     setCurrentTime(newTime);
   };
 
@@ -106,7 +247,10 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
   const handlePointerDown = (
     event: React.PointerEvent<HTMLDivElement>
   ) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture(
+      event.pointerId
+    );
+
     seekToPointer(event);
   };
 
@@ -115,7 +259,9 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
     event: React.PointerEvent<HTMLDivElement>
   ) => {
     if (
-      !event.currentTarget.hasPointerCapture(event.pointerId)
+      !event.currentTarget.hasPointerCapture(
+        event.pointerId
+      )
     ) {
       return;
     }
@@ -132,30 +278,40 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
         onLoadedMetadata={(event) => {
           const audio = event.currentTarget;
 
-          if (Number.isFinite(audio.duration)) {
+          if (
+            Number.isFinite(audio.duration)
+          ) {
             setDuration(audio.duration);
           }
         }}
         onDurationChange={(event) => {
           const audio = event.currentTarget;
 
-          if (Number.isFinite(audio.duration)) {
+          if (
+            Number.isFinite(audio.duration)
+          ) {
             setDuration(audio.duration);
           }
         }}
         onCanPlay={(event) => {
           const audio = event.currentTarget;
 
-          if (Number.isFinite(audio.duration)) {
+          if (
+            Number.isFinite(audio.duration)
+          ) {
             setDuration(audio.duration);
           }
         }}
         onTimeUpdate={(event) => {
           const audio = event.currentTarget;
 
-          setCurrentTime(audio.currentTime);
+          setCurrentTime(
+            audio.currentTime
+          );
 
-          if (Number.isFinite(audio.duration)) {
+          if (
+            Number.isFinite(audio.duration)
+          ) {
             setDuration(audio.duration);
           }
         }}
@@ -168,7 +324,9 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
         onEnded={(event) => {
           setIsPlaying(false);
           setCurrentTime(0);
+
           event.currentTarget.currentTime = 0;
+          event.currentTarget.volume = 1;
         }}
       />
 
@@ -197,13 +355,20 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
 
             <div className="text-left">
               <p
-                className={`text-[10px] font-semibold tracking-[0.18em] ${
-                  isPlaying
-                    ? "text-sky-500"
-                    : "text-slate-600"
-                }`}
+                className={`
+                  text-[10px]
+                  font-semibold
+                  tracking-[0.18em]
+                  ${
+                    isPlaying
+                      ? "text-sky-500"
+                      : "text-slate-600"
+                  }
+                `}
               >
-                {isPlaying ? "PLAYING" : "LISTEN"}
+                {isPlaying
+                  ? "PLAYING"
+                  : "LISTEN"}
               </p>
 
               {isPlaying && (
@@ -235,7 +400,11 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
         {/* TIME */}
         <p className="whitespace-nowrap text-[11px] font-medium tabular-nums text-slate-500">
           {formatTime(currentTime)}
-          <span className="mx-1.5 text-slate-300">/</span>
+
+          <span className="mx-1.5 text-slate-300">
+            /
+          </span>
+
           {formatTime(duration)}
         </p>
       </div>
@@ -248,8 +417,12 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
         aria-valuemax={duration || 0}
         aria-valuenow={currentTime}
         tabIndex={0}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
+        onPointerDown={
+          handlePointerDown
+        }
+        onPointerMove={
+          handlePointerMove
+        }
         className="mt-4 flex h-10 touch-none cursor-pointer items-center"
       >
         <div className="relative h-[5px] w-full rounded-full bg-slate-200">
