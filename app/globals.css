@@ -31,3 +31,35 @@ body {
 .font-logo {
   font-family: var(--font-playfair), serif;
 }
+
+@keyframes floatUp {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.7);
+  }
+
+  25% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-28px) scale(1.15);
+  }
+}
+
+@keyframes softPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+
+  60% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

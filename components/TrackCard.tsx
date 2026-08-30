@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import AudioPlayer from "./AudioPlayer";
 
 type TrackCardProps = {
@@ -13,6 +16,16 @@ export default function TrackCard({
   audioSrc,
   tone,
 }: TrackCardProps) {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = () => {
+    setIsDownloading(true);
+
+    window.setTimeout(() => {
+      setIsDownloading(false);
+    }, 1500);
+  };
+
   const isPink = tone === "pink";
 
   const styles = isPink
@@ -22,6 +35,7 @@ export default function TrackCard({
         number: "text-pink-300",
         title: "text-pink-500",
         accent: "bg-pink-200",
+        download: "text-pink-400",
       }
     : {
         bg: "bg-sky-50/70",
@@ -29,6 +43,7 @@ export default function TrackCard({
         number: "text-sky-300",
         title: "text-sky-500",
         accent: "bg-sky-200",
+        download: "text-sky-400",
       };
 
   return (
@@ -133,39 +148,119 @@ export default function TrackCard({
         >
           <AudioPlayer src={audioSrc} />
 
-          <a
-            href={audioSrc}
-            download
-            className="
-              flex
-              min-h-11
-              items-center
-              justify-center
-              gap-2
-              rounded-full
-              border
-              border-slate-200
-              bg-white/60
-              px-5
-              text-[10px]
-              font-medium
-              tracking-[0.18em]
-              text-slate-600
-              transition
-              hover:border-slate-300
-              hover:bg-white
-              hover:text-slate-900
-              sm:min-h-0
-              sm:justify-start
-              sm:rounded-none
-              sm:border-0
-              sm:bg-transparent
-              sm:px-0
-            "
-          >
-            DOWNLOAD
-            <span className="text-base">↓</span>
-          </a>
+          {/* DOWNLOAD */}
+          <div className="relative">
+            {isDownloading && (
+              <div
+                className="
+                  pointer-events-none
+                  absolute
+                  bottom-full
+                  left-1/2
+                  h-10
+                  w-20
+                  -translate-x-1/2
+                "
+                aria-hidden="true"
+              >
+                {/* 左の光 */}
+                <span
+                  className={`
+                    absolute
+                    bottom-0
+                    left-2
+                    animate-[floatUp_1.1s_ease-out_forwards]
+                    text-[10px]
+                    ${styles.download}
+                  `}
+                >
+                  ✦
+                </span>
+
+                {/* 中央のハート */}
+                <span
+                  className="
+                    absolute
+                    bottom-1
+                    left-1/2
+                    -translate-x-1/2
+                    animate-[floatUp_1.25s_ease-out_forwards]
+                    text-xs
+                    text-pink-300
+                    [animation-delay:80ms]
+                  "
+                >
+                  ♡
+                </span>
+
+                {/* 右の光 */}
+                <span
+                  className={`
+                    absolute
+                    bottom-0
+                    right-2
+                    animate-[floatUp_1s_ease-out_forwards]
+                    text-[9px]
+                    [animation-delay:160ms]
+                    ${styles.download}
+                  `}
+                >
+                  ✦
+                </span>
+              </div>
+            )}
+
+            <a
+              href={audioSrc}
+              download
+              onClick={handleDownload}
+              className={`
+                flex
+                min-h-11
+                items-center
+                justify-center
+                gap-2
+                rounded-full
+                border
+                px-5
+                text-[10px]
+                font-medium
+                tracking-[0.18em]
+                transition-all
+                duration-300
+
+                sm:min-h-0
+                sm:justify-start
+                sm:rounded-none
+                sm:border-0
+                sm:bg-transparent
+                sm:px-0
+
+                ${
+                  isDownloading
+                    ? `border-slate-200 bg-white/80 ${styles.download}`
+                    : "border-slate-200 bg-white/60 text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+                }
+              `}
+            >
+              {isDownloading ? (
+                <>
+                  <span className="animate-[softPop_300ms_ease-out]">
+                    THANK YOU
+                  </span>
+
+                  <span className="text-xs">
+                    ♡
+                  </span>
+                </>
+              ) : (
+                <>
+                  DOWNLOAD
+                  <span className="text-base">↓</span>
+                </>
+              )}
+            </a>
+          </div>
         </div>
       </div>
     </article>
