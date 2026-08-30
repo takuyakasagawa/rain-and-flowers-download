@@ -15,7 +15,7 @@ const tracks = [
   {
     number: "02",
     title: "Fuzzy",
-    audioSrc: "/audio/fuzzy.mp3",
+    audioSrc: "/audio/Fuzzy.mp3",
     tone: "blue" as const,
   },
 ];
