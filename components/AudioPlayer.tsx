@@ -129,48 +129,63 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
       requestAnimationFrame(fade);
   };
 
-  // 再生 / 一時停止
-  const togglePlay = async () => {
-    const audio = audioRef.current;
-    if (!audio) return;
+// 再生 / 一時停止
+const togglePlay = async () => {
+  const audio = audioRef.current;
+  if (!audio) return;
 
-    if (audio.paused) {
-      window.dispatchEvent(
-        new CustomEvent("audio-player-play", {
-          detail: src,
-        })
-      );
+  if (audio.paused) {
+    window.dispatchEvent(
+      new CustomEvent("audio-player-play", {
+        detail: src,
+      })
+    );
 
-      try {
-        const shouldFadeIn =
-          audio.currentTime > 0.1;
+    // Safari対策：
+    // シークバー上で選択されている位置を保存
+    const targetTime = currentTime;
 
-        if (shouldFadeIn) {
-          audio.volume = 0;
-        } else {
-          audio.volume = 1;
-        }
+    try {
+      const shouldFadeIn = targetTime > 0.1;
 
-        await audio.play();
-
-        if (shouldFadeIn) {
-          fadeInAudio(audio, 300);
-        }
-      } catch (error) {
+      if (shouldFadeIn) {
+        audio.volume = 0;
+      } else {
         audio.volume = 1;
+      }
 
-        console.error(
-          "Audio playback failed:",
-          error
+      await audio.play();
+
+      // 初回再生前にシークしていた場合、
+      // SafariではcurrentTimeが0に戻ることがあるので再適用
+      if (
+        targetTime > 0.1 &&
+        Number.isFinite(audio.duration)
+      ) {
+        audio.currentTime = Math.min(
+          targetTime,
+          audio.duration
         );
       }
-    } else {
-      fadeOutAudio(audio, 200, () => {
-        audio.pause();
-        audio.volume = 1;
-      });
+
+      if (shouldFadeIn) {
+        fadeInAudio(audio, 300);
+      }
+    } catch (error) {
+      audio.volume = 1;
+
+      console.error(
+        "Audio playback failed:",
+        error
+      );
     }
-  };
+  } else {
+    fadeOutAudio(audio, 200, () => {
+      audio.pause();
+      audio.volume = 1;
+    });
+  }
+};
 
   // 最初に戻る
   const restartAudio = () => {
