@@ -8,6 +8,7 @@ type AudioPlayerProps = {
 
 export default function AudioPlayer({ src }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const pendingSeekRef = useRef<number | null>(null);
   const fadeAnimationRef = useRef<number | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -129,66 +130,50 @@ export default function AudioPlayer({ src }: AudioPlayerProps) {
       requestAnimationFrame(fade);
   };
 
-// 再生 / 一時停止
-const togglePlay = async () => {
-  const audio = audioRef.current;
-  if (!audio) return;
+  // 再生 / 一時停止
+  const togglePlay = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
 
-  if (audio.paused) {
-    window.dispatchEvent(
-      new CustomEvent("audio-player-play", {
-        detail: src,
-      })
-    );
-
-    // Safari対策：
-    // シークバー上で選択されている位置を保存
-    const targetTime = currentTime;
-
-    try {
-      const shouldFadeIn = targetTime > 0.1;
-
-      if (shouldFadeIn) {
-        audio.volume = 0;
-      } else {
-        audio.volume = 1;
-      }
-
-      await audio.play();
-
-      // 初回再生前にシークしていた場合、
-      // SafariではcurrentTimeが0に戻ることがあるので再適用
-      if (
-        targetTime > 0.1 &&
-        Number.isFinite(audio.duration)
-      ) {
-        audio.currentTime = Math.min(
-          targetTime,
-          audio.duration
-        );
-      }
-
-      if (shouldFadeIn) {
-        fadeInAudio(audio, 300);
-      }
-    } catch (error) {
-      audio.volume = 1;
-
-      console.error(
-        "Audio playback failed:",
-        error
+    if (audio.paused) {
+      window.dispatchEvent(
+        new CustomEvent("audio-player-play", { detail: src })
       );
+
+      try {
+        // ユーザー操作中に再生を開始し、初回のシークは開始後に適用する。
+        // play() の完了を待つ間に無音のままにならないよう音量を戻す。
+        audio.volume = 1;
+        await audio.play();
+        if (audio.paused) return;
+
+        const targetTime = pendingSeekRef.current;
+        if (targetTime !== null && Number.isFinite(audio.duration)) {
+          // 終端が選ばれていた場合は先頭から再生する。
+          const nextTime = targetTime >= audio.duration ? 0 : targetTime;
+          audio.currentTime = nextTime;
+          pendingSeekRef.current = null;
+          setCurrentTime(nextTime);
+        }
+
+        if (audio.currentTime > 0.1) {
+          fadeInAudio(audio, 300);
+        }
+      } catch (error) {
+        audio.volume = 1;
+        console.error("Audio playback failed:", error);
+      }
+    } else {
+      fadeOutAudio(audio, 200, () => {
+        audio.pause();
+        audio.volume = 1;
+      });
     }
-  } else {
-    fadeOutAudio(audio, 200, () => {
-      audio.pause();
-      audio.volume = 1;
-    });
-  }
-};
+  };
 
   // 最初に戻る
   const restartAudio = () => {
+    pendingSeekRef.current = null;
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -253,7 +238,11 @@ const togglePlay = async () => {
         Math.min(1, position)
       ) * duration;
 
-    audio.currentTime = newTime;
+    if (audio.paused || pendingSeekRef.current !== null) {
+      pendingSeekRef.current = newTime;
+    } else {
+      audio.currentTime = newTime;
+    }
 
     setCurrentTime(newTime);
   };
@@ -320,9 +309,10 @@ const togglePlay = async () => {
         onTimeUpdate={(event) => {
           const audio = event.currentTarget;
 
-          setCurrentTime(
-            audio.currentTime
-          );
+          // 再生開始時の timeupdate で選択位置を上書きしない。
+          if (pendingSeekRef.current === null) {
+            setCurrentTime(audio.currentTime);
+          }
 
           if (
             Number.isFinite(audio.duration)
@@ -337,6 +327,7 @@ const togglePlay = async () => {
           setIsPlaying(false);
         }}
         onEnded={(event) => {
+          pendingSeekRef.current = null;
           setIsPlaying(false);
           setCurrentTime(0);
 
